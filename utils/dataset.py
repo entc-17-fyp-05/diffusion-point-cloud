@@ -73,12 +73,16 @@ class ShapeNetCore(Dataset):
             self.stats = torch.load(stats_save_path)
             return self.stats
 
-        with h5py.File(self.path, 'r') as f:
-            pointclouds = []
-            for synsetid in self.cate_synsetids:
-                for split in ('train', 'val', 'test'):
-                    pointclouds.append(torch.from_numpy(f[synsetid][split][...]))
-
+#         with h5py.File(self.path, 'r') as f:
+#             pointclouds = []
+#             for synsetid in self.cate_synsetids:
+#                 for split in ('train', 'val', 'test'):
+#                     pointclouds.append(torch.from_numpy(f[synsetid][split][...]))
+        if self.split=='train':
+            pointclouds=torch.from_numpy(np.load('train.npy')[1])
+        elif self.split=='val':
+            pointclouds=torch.from_numpy(np.load('val.npy')[1])
+        #print(torch.is_tensor(pointclouds))
         all_points = torch.cat(pointclouds, dim=0) # (B, N, 3)
         B, N, _ = all_points.size()
         mean = all_points.view(B*N, -1).mean(dim=0) # (1, 3)
@@ -89,46 +93,62 @@ class ShapeNetCore(Dataset):
         return self.stats
 
     def load(self):
-
+#         def _enumerate_pointclouds(f):
+#             for synsetid in self.cate_synsetids:
+#                 cate_name = synsetid_to_cate[synsetid]
+#                 for j, pc in enumerate(f[synsetid][self.split]):
+#                     yield torch.from_numpy(pc), j, cate_name
+        
         def _enumerate_pointclouds(f):
             for synsetid in self.cate_synsetids:
                 cate_name = synsetid_to_cate[synsetid]
-                for j, pc in enumerate(f[synsetid][self.split]):
+                for j, pc in enumerate(f):
                     yield torch.from_numpy(pc), j, cate_name
+                    
+        if self.split=='train':
+            pointclouds=np.load('train.npy')
+            f=pointclouds[:5632]
+            
+        elif self.split=='val':
+            pointclouds=np.load('val.npy')
+            f=pointclouds
+            
+        elif self.split=='latent_space':
+            pointclouds=np.load('val.npy')# enter the npy arrays for latent space [128, 2048, 3]
+            f=pointclouds
         
-        with h5py.File(self.path, mode='r') as f:
-            for pc, pc_id, cate_name in _enumerate_pointclouds(f):
+        for pc, pc_id, cate_name in _enumerate_pointclouds(f):
+            #print(pc)
+            if self.scale_mode == 'global_unit':
+                shift = pc.mean(dim=0).reshape(1, 3)
+                scale = self.stats['std'].reshape(1, 1)
+            elif self.scale_mode == 'shape_unit':
+                shift = pc.mean(dim=0).reshape(1, 3)
+                scale = pc.flatten().std().reshape(1, 1)
+            elif self.scale_mode == 'shape_half':
+                shift = pc.mean(dim=0).reshape(1, 3)
+                scale = pc.flatten().std().reshape(1, 1) / (0.5)
+            elif self.scale_mode == 'shape_34':
+                shift = pc.mean(dim=0).reshape(1, 3)
+                scale = pc.flatten().std().reshape(1, 1) / (0.75)
+            elif self.scale_mode == 'shape_bbox':
+                pc_max, _ = pc.max(dim=0, keepdim=True) # (1, 3)
+                pc_min, _ = pc.min(dim=0, keepdim=True) # (1, 3)
+                shift = ((pc_min + pc_max) / 2).view(1, 3)
+                scale = (pc_max - pc_min).max().reshape(1, 1) / 2
+            else:
+                shift = torch.zeros([1, 3])
+                scale = torch.ones([1, 1])
 
-                if self.scale_mode == 'global_unit':
-                    shift = pc.mean(dim=0).reshape(1, 3)
-                    scale = self.stats['std'].reshape(1, 1)
-                elif self.scale_mode == 'shape_unit':
-                    shift = pc.mean(dim=0).reshape(1, 3)
-                    scale = pc.flatten().std().reshape(1, 1)
-                elif self.scale_mode == 'shape_half':
-                    shift = pc.mean(dim=0).reshape(1, 3)
-                    scale = pc.flatten().std().reshape(1, 1) / (0.5)
-                elif self.scale_mode == 'shape_34':
-                    shift = pc.mean(dim=0).reshape(1, 3)
-                    scale = pc.flatten().std().reshape(1, 1) / (0.75)
-                elif self.scale_mode == 'shape_bbox':
-                    pc_max, _ = pc.max(dim=0, keepdim=True) # (1, 3)
-                    pc_min, _ = pc.min(dim=0, keepdim=True) # (1, 3)
-                    shift = ((pc_min + pc_max) / 2).view(1, 3)
-                    scale = (pc_max - pc_min).max().reshape(1, 1) / 2
-                else:
-                    shift = torch.zeros([1, 3])
-                    scale = torch.ones([1, 1])
+            pc = (pc - shift) / scale
 
-                pc = (pc - shift) / scale
-
-                self.pointclouds.append({
-                    'pointcloud': pc,
-                    'cate': cate_name,
-                    'id': pc_id,
-                    'shift': shift,
-                    'scale': scale
-                })
+            self.pointclouds.append({
+                'pointcloud': pc,
+                'cate': cate_name,
+                'id': pc_id,
+                'shift': shift,
+                'scale': scale
+            })
 
         # Deterministically shuffle the dataset
         self.pointclouds.sort(key=lambda data: data['id'], reverse=False)

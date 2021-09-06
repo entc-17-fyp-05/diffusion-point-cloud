@@ -120,7 +120,7 @@ class DiffusionPoint(Module):
 
     def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False):
         batch_size = context.size(0)
-        x_T = torch.randn([batch_size, num_points, point_dim]).to(context.device)
+        x_T = torch.randn([batch_size, num_points, point_dim]).to('cuda:0')
         traj = {self.var_sched.num_steps: x_T}
         for t in range(self.var_sched.num_steps, 0, -1):
             z = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)

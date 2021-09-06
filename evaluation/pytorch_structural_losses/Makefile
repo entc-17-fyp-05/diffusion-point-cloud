@@ -6,7 +6,7 @@
 
 CXX := g++
 PYTHON := python
-NVCC := /usr/local/cuda-10.0/bin/nvcc	# !!WARNING!! Errors occur when using version 10.1
+NVCC := /usr/local/cuda-11.3/bin/nvcc	# !!WARNING!! Errors occur when using version 10.1
 
 # PYTHON Header path
 PYTHON_HEADER_DIR := $(shell $(PYTHON) -c 'from distutils.sysconfig import get_python_inc; print(get_python_inc())')

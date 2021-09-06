@@ -3,6 +3,7 @@ import time
 import argparse
 import torch
 from tqdm.auto import tqdm
+import numpy as np
 
 from utils.dataset import *
 from utils.misc import *
@@ -13,12 +14,12 @@ from evaluation import EMD_CD
 
 # Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./pretrained/AE_airplane.pt')
-parser.add_argument('--categories', type=str_list, default=['airplane'])
+parser.add_argument('--ckpt', type=str, default='./pretrained/chair.pt')
+parser.add_argument('--categories', type=str_list, default=['chair'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
 # Datasets and loaders
-parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
+parser.add_argument('--dataset_path', type=str, default='./shape_net_core_uniform_samples_2048')
 parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--num_workers', type=int, default=4)
 args = parser.parse_args()
@@ -40,9 +41,11 @@ logger.info('Loading datasets...')
 test_dset = ShapeNetCore(
     path=args.dataset_path,
     cates=args.categories,
-    split='test',
+    split='val',
     scale_mode=ckpt['args'].scale_mode
 )
+
+print(np.shape(test_dset), "this is the shape")
 test_loader = DataLoader(test_dset, batch_size=args.batch_size, num_workers=args.num_workers)
 
 # Model

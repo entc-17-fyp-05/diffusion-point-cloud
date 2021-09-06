@@ -4,6 +4,7 @@ import torch
 import torch.utils.tensorboard
 from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
+import numpy as np
 
 from utils.dataset import *
 from utils.misc import *
@@ -26,8 +27,8 @@ parser.add_argument('--residual', type=eval, default=True, choices=[True, False]
 parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
-parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--categories', type=str_list, default=['airplane'])
+parser.add_argument('--dataset_path', type=str, default='./shape_net_core_uniform_samples_2048')
+parser.add_argument('--categories', type=str_list, default=['chair'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=32)
@@ -88,12 +89,16 @@ val_dset = ShapeNetCore(
     scale_mode=args.scale_mode,
     transform=transform,
 )
+#train_dset=np.load('train.npy')
+
+#val_dset=np.load('val.npy')
+
 train_iter = get_data_iterator(DataLoader(
     train_dset,
     batch_size=args.train_batch_size,
     num_workers=args.num_workers
 ))
-val_loader = DataLoader(val_dset, batch_size=args.val_batch_size, num_workers=args.num_workers)
+val_loader = DataLoader(val_dset, batch_size=args.val_batch_size, num_workers=args.num_workers)#,drop_last=True)
 
 
 # Model

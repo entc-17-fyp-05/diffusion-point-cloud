@@ -26,6 +26,7 @@ class AutoEncoder(Module):
         Args:
             x:  Point clouds to be encoded, (B, N, d).
         """
+        print(x.size())
         code, _ = self.encoder(x)
         return code
 
